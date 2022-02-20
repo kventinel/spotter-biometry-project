@@ -1,1 +1,1 @@
-from .simple_datamodule import SimpleDataModule
+from .russian_common_voice_datamodule import RussianCommonVoiceDataModule
