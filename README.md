@@ -35,6 +35,7 @@ Some papers about spotter:
 
 Some papers about biometry:
 - https://arxiv.org/pdf/2104.01989.pdf
+- https://arxiv.org/pdf/2005.07143.pdf
 
 ## Inference
 
