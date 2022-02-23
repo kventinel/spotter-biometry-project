@@ -1,3 +1,5 @@
+import string
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
@@ -14,8 +16,21 @@ class RussianCommonVoiceDataset(Dataset):
         data_path = Path(data_dir)
         tsv_path = data_path / tsv_filename
         info = pd.read_csv(tsv_path, sep='\t')
-        self.filenames = list(map(lambda x: data_path / 'clips' / x, info['path']))
-        self.text = list(info['sentence'])
+        self.filenames = \
+            list(map(lambda x: data_path / 'clips' / x, info['path']))
+        self.texts = list(info['sentence'])
+        prepared_texts = list(map(
+            lambda x: "".join(
+                symbol for symbol in x if symbol not in string.punctuation
+            ).lower(),
+            info['sentence'],
+        ))
+        splitted_texts = list(map(lambda x: x.split(), prepared_texts))
+        words_counter = self._get_counter(splitted_texts)
+        print(words_counter.most_common()[:20])
+
+        keywords = ['должны', 'слово', 'сейчас']
+        self.labels = self._get_labels(splitted_texts, keywords)
 
         self.mel_spectrogram_transform = T.MelSpectrogram(
             sample_rate=10,
@@ -24,19 +39,61 @@ class RussianCommonVoiceDataset(Dataset):
             hop_length=25,
         )
 
+    def _get_counter(self, splitted_texts):
+        words_counter = Counter()
+
+        for words in splitted_texts:
+            for word in words:
+                if len(word) < 4:
+                    continue
+                words_counter[word] += 1
+
+        return words_counter
+
+    def _get_labels(self, splitted_texts, keywords):
+        labels = list(0 for _ in range(len(splitted_texts)))
+
+        for i, text in enumerate(splitted_texts):
+            for j, keyword in enumerate(keywords):
+                if keyword in text:
+                    labels[i] = j+1
+
+        return labels
+
     def __len__(self):
         return len(self.filenames)
 
     def __getitem__(self, idx: int):
         filename = self.filenames[idx]
-        text = self.text[idx]
-        if idx % 2000 == 0:
-            print(text)
+        #text = self.texts[idx]
+        label = self.labels[idx]
         waveform, sample_rate = torchaudio.load(filename)
-        melspec = self.mel_spectrogram_transform(waveform)
+        #melspec = self.mel_spectrogram_transform(waveform)
         #print(melspec.shape)
 
-        return melspec[:, :, :100]
+        return waveform, label
+
+
+class Collator:
+    def __call__(self, batch):
+        waveforms, labels = zip(*batch)
+
+        lengths = list()
+        for waveform in waveforms:
+            lengths.append(waveform.size(-1))
+
+        batch_waveforms = torch.zeros(len(batch), max(lengths))
+        for i, (waveform, length) in enumerate(zip(waveforms, lengths)):
+            batch_waveforms[i, :length] = waveform.squeeze()
+
+        labels = torch.tensor(labels).long()
+        lengths = torch.tensor(lengths).long()
+
+        return {
+            'wav': batch_waveforms,
+            'label': labels,
+            'length': lengths,
+        }
 
 
 class RussianCommonVoiceDataModule(LightningDataModule):
@@ -69,6 +126,7 @@ class RussianCommonVoiceDataModule(LightningDataModule):
         return DataLoader(
             self.train_common_voice_dataset,
             batch_size=self.batch_size,
+            collate_fn=Collator(),
             num_workers=self.num_workers,
         )
 
@@ -76,6 +134,7 @@ class RussianCommonVoiceDataModule(LightningDataModule):
         return DataLoader(
             self.val_common_voice_dataset,
             batch_size=self.batch_size,
+            collate_fn=Collator(),
             num_workers=self.num_workers,
         )
 
@@ -83,6 +142,7 @@ class RussianCommonVoiceDataModule(LightningDataModule):
         return DataLoader(
             self.test_common_voice_dataset,
             batch_size=self.batch_size,
+            collate_fn=Collator(),
             num_workers=self.num_workers,
         )
 
@@ -98,15 +158,13 @@ if __name__ == '__main__':
     test_dataloader = datamodule.test_dataloader()
 
     for i, batch in enumerate(train_dataloader):
-        #print(batch)
+        print(batch)
         if i == 10:
             break
     for i, batch in enumerate(val_dataloader):
-        #print(batch)
         if i == 10:
             break
     for i, batch in enumerate(test_dataloader):
-        #print(batch)
         if i == 10:
             break
 
