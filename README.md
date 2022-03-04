@@ -5,9 +5,17 @@
 We have 3 open datasets:
 - English Mozilla Common Voice: https://commonvoice.mozilla.org/en/datasets
 - All languages Mozilla Common Voice
-- Our own recordings in Russian: TODO
+- Our own recordings in Russian: https://disk.yandex.ru/d/QlY5QRAHN6o8jg
 
-We need split all sets on train/test by speakers to train/test biometry model. Also we need get only top words/phrases (top 100 or top 200 for example) by frequency from sets to train/test keyword spotting model.
+We need split all sets on train/test by speakers to train/test all our models. Also we need get only top words/phrases (top 100 or top 200 for example) by frequency from sets to train/test keyword spotting model.
+
+### Our own set in russian description
+
+`data.tsv` file description:
+- name -- unique audiofile name from audio folder
+- text -- transcript for speech in audiofile
+- speaker_id -- unique id of speaker
+- record_id -- each phrase of speaker recorded on some count of devices, so record_id is unique id of one pronunciation
 
 ## Model
 
@@ -39,7 +47,6 @@ Some papers about biometry:
 
 ## Inference
 
-
 - Enrollment: speakers pronounce some count of phrases and biometry model calculate speaker embedding
-- Solve keyword spotting task with biometry for given speaker on some set of wav files
-- Solve keyword spotting task with biometry for given speaker on sound flow
+- (simple) Solve keyword spotting task with biometry for given speaker on some set of wav files
+- (harder) Solve keyword spotting task with biometry for given speaker on sound flow
