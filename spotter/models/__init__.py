@@ -1,1 +1,1 @@
-from .simple_model import SimpleModel
+from .simple_classifier import SimpleClassifier

@@ -89,11 +89,13 @@ class Collator:
         labels = torch.tensor(labels).long()
         lengths = torch.tensor(lengths).long()
 
-        return {
-            'wav': batch_waveforms,
-            'label': labels,
-            'length': lengths,
-        }
+        # return {
+        #     'wav': batch_waveforms,
+        #     'label': labels,
+        #     'length': lengths,
+        # }
+
+        return batch_waveforms, labels, lengths
 
 
 class RussianCommonVoiceDataModule(LightningDataModule):
@@ -110,15 +112,15 @@ class RussianCommonVoiceDataModule(LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         self.train_common_voice_dataset = RussianCommonVoiceDataset(
-            data_dir=data_dir,
+            data_dir=self.data_dir,
             tsv_filename='train.tsv',
         )
         self.val_common_voice_dataset = RussianCommonVoiceDataset(
-            data_dir=data_dir,
+            data_dir=self.data_dir,
             tsv_filename='dev.tsv',
         )
         self.test_common_voice_dataset = RussianCommonVoiceDataset(
-            data_dir=data_dir,
+            data_dir=self.data_dir,
             tsv_filename='test.tsv',
         )
 
