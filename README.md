@@ -5,7 +5,8 @@
 We have 3 open datasets:
 - English Mozilla Common Voice: https://commonvoice.mozilla.org/en/datasets
 - All languages Mozilla Common Voice
-- Our own recordings in Russian: https://disk.yandex.ru/d/QlY5QRAHN6o8jg
+- Our own recordings in Russian v1: https://disk.yandex.ru/d/QlY5QRAHN6o8jg
+- Our own recordings in Russian v2: https://disk.yandex.ru/d/iDRZdPo6f4Uk0g
 
 We need split all sets on train/test by speakers to train/test all our models. Also we need get only top words/phrases (top 100 or top 200 for example) by frequency from sets to train/test keyword spotting model.
 
