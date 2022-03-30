@@ -2,10 +2,18 @@ import string
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import torch
+import tqdm
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    Subset,
+    WeightedRandomSampler,
+)
 
 
 class SDAProjectDataset(Dataset):
@@ -34,7 +42,7 @@ class SDAProjectDataset(Dataset):
                 if keyword in text:
                     labels[i] = j + 1
 
-        return labels
+        return np.asarray(labels)
 
     def __len__(self):
         return len(self.paths)
@@ -92,40 +100,63 @@ class SDAProjectDataModule(LightningDataModule):
         val_dataset_length = int(ratios[1] * len(full_dataset))
         train_dataset_length = \
             len(full_dataset) - test_dataset_length - val_dataset_length
-        trainval_dataset, self.test_dataset = random_split(
-            dataset=full_dataset,
-            lengths=(
-                train_dataset_length + val_dataset_length,
-                test_dataset_length,
-            )
+
+        full_indices = np.arange(len(full_dataset))
+        trainval_indices, test_indices = train_test_split(
+            full_indices,
+            test_size=ratios[2],
+            stratify=full_dataset.labels,
         )
-        self.train_dataset, self.val_dataset = random_split(
-            dataset=trainval_dataset,
-            lengths=(train_dataset_length, val_dataset_length),
+        train_indices, val_indices = train_test_split(
+            trainval_indices,
+            test_size=ratios[1],
+            stratify=full_dataset.labels[trainval_indices],
         )
+
+        self.train_dataset = Subset(full_dataset, train_indices)
+        self.val_dataset = Subset(full_dataset, val_indices)
+        self.test_dataset = Subset(full_dataset, test_indices)
+        self.train_dataset.labels = full_dataset.labels[train_indices]
+        self.val_dataset.labels = full_dataset.labels[val_indices]
+        self.test_dataset.labels = full_dataset.labels[test_indices]
+
+        self.train_sampler = self._get_sampler(self.train_dataset)
+        self.val_sampler = self._get_sampler(self.val_dataset)
+        self.test_sampler = self._get_sampler(self.test_dataset)
+
+    def _get_sampler(self, dataset):
+        labels =  np.array(dataset.labels)
+        pos = sum(labels)
+        neg = len(labels) - pos
+        weights = torch.tensor([1 / pos if t == 1 else 1 / neg for t in labels])
+        sampler = WeightedRandomSampler(weights, len(weights))
+        return sampler
 
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset,
+            dataset=self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=Collator(),
             num_workers=self.num_workers,
+            sampler=self.train_sampler,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self.val_dataset,
+            dataset=self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=Collator(),
             num_workers=self.num_workers,
+            sampler=self.val_sampler,
         )
 
     def test_dataloader(self):
         return DataLoader(
-            self.test_dataset,
+            dataset=self.test_dataset,
             batch_size=self.batch_size,
             collate_fn=Collator(),
             num_workers=self.num_workers,
+            sampler=self.test_sampler,
         )
 
 
@@ -136,11 +167,15 @@ if __name__ == '__main__':
     train_dataloader = datamodule.train_dataloader()
     val_dataloader = datamodule.val_dataloader()
     test_dataloader = datamodule.test_dataloader()
+    a = 0
 
-    for i, batch in enumerate(train_dataloader):
-        print(batch)
-        if i == 10:
-            break
+    for i, batch in tqdm.tqdm(enumerate(train_dataloader), total=len(train_dataloader)):
+        labels = batch['labels']
+        if i < 10:
+            print(labels)
+        a += labels.sum()
+
+    print(a, a / len(train_dataloader) / 8, len(train_dataloader) * 8)
     for i, batch in enumerate(val_dataloader):
         if i == 10:
             break

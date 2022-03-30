@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchmetrics
 from einops.layers.torch import Rearrange
 from pytorch_lightning import LightningModule
 
@@ -9,7 +10,7 @@ class SimpleClassifier(LightningModule):
         self,
         embedding_size: int = 100,
         window_size: int = 40,
-        n_keywords: int = 3,
+        n_keywords: int = 1,
     ):
         super().__init__()
         self.embedding_size = embedding_size
@@ -17,12 +18,24 @@ class SimpleClassifier(LightningModule):
         self.n_keywords = n_keywords
 
         self.embedder = nn.Sequential(
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
             nn.Linear(128, embedding_size),
         )
         self.head = nn.Sequential(
             Rearrange('bs w e -> bs (w e)'),
-            nn.Linear(window_size * embedding_size, n_keywords),
+            nn.Linear(window_size * embedding_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_keywords + 1),
+            nn.Softmax(),
         )
+
+        #n_objects_per_class = [85280, 5372]
+        #weights = torch.tensor([1 - (x / sum(n_objects_per_class)) for x in n_objects_per_class])
+        #print(f'Weights: {weights}')
+        #self.criterion = nn.CrossEntropyLoss(weight=weights)
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x) -> torch.Tensor:
@@ -43,13 +56,60 @@ class SimpleClassifier(LightningModule):
 
         return probs
 
-    def training_step(self, batch, batch_idx) -> torch.Tensor:
+    def training_step(self, batch, batch_idx):
         melspecs = batch['melspecs']
         labels = batch['labels']
-        outputs = self.forward(melspecs)
-        print('!', len(outputs), outputs[0].shape,  labels.shape)
-        loss = self.criterion(outputs, labels)
-        return loss
+        probs = self.forward(melspecs)
+        #print('!', len(probs), probs[0].shape, labels.shape)
+
+        loss = 0
+        for i in range(len(probs)):
+            loss += self.criterion(probs[i], labels)
+        loss /= len(probs)
+        accuracy = torchmetrics.functional.accuracy(probs[len(probs) // 2], labels)
+
+        if batch_idx % 100 == 0:
+            print('-----------')
+            print(loss)
+            print(accuracy)
+            print(labels)
+
+        self.log('train/loss', loss)
+        self.log('train/accuracy', accuracy)
+
+        return {
+            'loss': loss,
+            'accuracy': accuracy,
+        }
+
+    def validation_step(self, batch, batch_idx):
+        melspecs = batch['melspecs']
+        labels = batch['labels']
+        probs = self.forward(melspecs)
+        #print('!', len(probs), probs[0].shape, labels.shape)
+
+        loss = 0
+
+        for i in range(len(probs)):
+            loss += self.criterion(probs[i], labels)
+
+        loss /= len(probs)
+
+        accuracy = torchmetrics.functional.accuracy(probs[len(probs) // 2], labels)
+
+        if batch_idx % 100 == 0:
+            print('-----------')
+            print(loss)
+            print(accuracy)
+            print(labels)
+
+        self.log('val/loss', loss)
+        self.log('val/accuracy', accuracy)
+
+        return {
+            'loss': loss,
+            'accuracy': accuracy,
+        }
 
     def _update_memory(self, x) -> None:
         '''updates self.embeddings'''
