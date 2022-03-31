@@ -32,10 +32,6 @@ class SimpleClassifier(LightningModule):
             nn.Softmax(),
         )
 
-        #n_objects_per_class = [85280, 5372]
-        #weights = torch.tensor([1 - (x / sum(n_objects_per_class)) for x in n_objects_per_class])
-        #print(f'Weights: {weights}')
-        #self.criterion = nn.CrossEntropyLoss(weight=weights)
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x) -> torch.Tensor:
