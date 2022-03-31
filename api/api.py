@@ -3,8 +3,8 @@ import glob
 import time
 import streamlit as st
 from audiorecoder import AudioRecoder
+from service import BiometryService
 from config import *
-
 
 
 def record_sample(path, seconds):
@@ -13,12 +13,13 @@ def record_sample(path, seconds):
 
 
 def main():
+    model = load_model()
+
     st.header("Голосовая биометрия")
     st.write(os.getcwd())
 
     if not st.session_state.start_record_example:
         st.session_state.start_record_example = st.button('Записать образец голоса')
-
 
     if st.session_state.start_record_example:
 
@@ -40,6 +41,7 @@ def main():
         st.write(f"Записано {st.session_state.count_record_example}/{COUNT_EXAMPLES_VOICE} образцов.")
 
         if st.session_state.count_record_example == COUNT_EXAMPLES_VOICE:
+            model.set_specimen_d_vector()
             st.session_state.start_record_example = False
             st.session_state.count_record_example = 0
 
@@ -49,11 +51,15 @@ def main():
         else:
             path = os.path.join(DIRECTORY_SAMPELS, TEMPLATE_REC_VOICE)
             record_sample(path, DURATIONS_RECOG)
+            if model.predict():
+                st.write(f"Пользователь совпадает")
+            else:
+                st.write(f"Пользователь не совпадает")
+
 
 @st.cache(allow_output_mutation=True)
 def load_model():
-    return False
-
+    return BiometryService(PATH_MODEL, -3)
 
 
 if __name__ == "__main__":
