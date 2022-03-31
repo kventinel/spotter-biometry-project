@@ -32,7 +32,7 @@ def main():
 
         if st.button('Начать запись'):
             path = os.path.join(DIRECTORY_SAMPELS, TEMPLATE_NAME_EXAMPLES_VOICE.format(st.session_state.count_record_example))
-            record_sample(st.session_state.count_record_example, DURATIONS)
+            record_sample(path, DURATIONS)
             st.session_state.count_record_example += 1
 
         if st.button('Очистить'):
@@ -41,7 +41,6 @@ def main():
         st.write(f"Записано {st.session_state.count_record_example}/{COUNT_EXAMPLES_VOICE} образцов.")
 
         if st.session_state.count_record_example == COUNT_EXAMPLES_VOICE:
-            model.set_specimen_d_vector()
             st.session_state.start_record_example = False
             st.session_state.count_record_example = 0
 
@@ -50,6 +49,7 @@ def main():
             st.write(f"Вначале запишите все образцы.")
         else:
             path = os.path.join(DIRECTORY_SAMPELS, TEMPLATE_REC_VOICE)
+            model.set_specimen_d_vector()
             record_sample(path, DURATIONS_RECOG)
             if model.predict():
                 st.write(f"Пользователь совпадает")
@@ -59,7 +59,7 @@ def main():
 
 @st.cache(allow_output_mutation=True)
 def load_model():
-    return BiometryService(PATH_MODEL, -3)
+    return BiometryService(PATH_MODEL, -1.9)
 
 
 if __name__ == "__main__":

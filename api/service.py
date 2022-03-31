@@ -44,6 +44,8 @@ class BiometryService:
                                          sample_rate,
                                          self.resample_rate)
 
+        print(resampled_waveform.shape)
+
         if resampled_waveform.shape[1] >= self.waveform_treshold:
             resampled_waveform = resampled_waveform[:, :self.waveform_treshold]
         else:
@@ -69,4 +71,7 @@ class BiometryService:
         x = self.preprocessing(os.path.join(DIRECTORY_SAMPELS, TEMPLATE_REC_VOICE))
 
         with torch.no_grad():
-            return int(self.model(x) > self.model_treshold)
+            res = self.model(x)
+            print(res)
+
+            return int(res > self.model_treshold)
